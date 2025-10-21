@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -32,6 +32,25 @@ func add(title string) {
 	nextID++
 	fmt.Println("Tâche ajoutée :", t.Title)
 }
+func suppr(id int) error {
+	for i, t := range tasks {
+		if t.ID == id {
+			tasks = append(tasks[:i], tasks[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("Tâche non trouvée")
+}
+
+func markDone(id int) error {
+	for i := range tasks {
+		if tasks[i].ID == id {
+			tasks[i].Done = true
+			return nil
+		}
+	}
+	return errors.New("Tâche non trouvée")
+}
 func list() {
 	if len(tasks) == 0 {
 		fmt.Println("Aucune tâche trouvée.")
@@ -50,11 +69,11 @@ func save() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(dataFile, b, 0644)
+	return os.WriteFile(dataFile, b, 0644)
 }
 
 func load() error {
-	b, err := ioutil.ReadFile(dataFile)
+	b, err := os.ReadFile(dataFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil // Pas de fichier, pas de tâches à charger
@@ -79,6 +98,10 @@ func main() {
 	// Flags simples
 	addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 	addTitle := addCmd.String("title", "", "Titre de la tâche")
+	doneCmd := flag.NewFlagSet("done", flag.ExitOnError)
+	doneId := doneCmd.Int("id", 0, "ID de la tâche")
+	supprCmd := flag.NewFlagSet("suppr", flag.ExitOnError)
+	supprId := supprCmd.Int("id", 0, "ID de la tâche")
 
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
 
@@ -102,6 +125,39 @@ func main() {
 		if err := save(); err != nil {
 			fmt.Println("Erreur de sauvegarde des tâches :", err)
 			os.Exit(1)
+		}
+	case "suppr":
+		supprCmd.Parse(os.Args[2:])
+		if *supprId == 0 {
+			fmt.Println("Usage: todo suppr --id N")
+			os.Exit(1)
+		}
+		if err := suppr(*supprId); err != nil {
+			fmt.Println("Erreur :", err)
+			os.Exit(1)
+		}
+		if err := save(); err != nil {
+			fmt.Println("Erreur de sauvegarde :", err)
+			os.Exit(1)
+		} else {
+			fmt.Println("Tâche supprimée :", *supprId)
+		}
+
+	case "done":
+		doneCmd.Parse(os.Args[2:])
+		if *doneId == 0 {
+			fmt.Println("Usage: todo done --id N")
+			os.Exit(1)
+		}
+		if err := markDone(*doneId); err != nil {
+			fmt.Println("Erreur :", err)
+			os.Exit(1)
+		}
+		if err := save(); err != nil {
+			fmt.Println("Erreur de sauvegarde :", err)
+			os.Exit(1)
+		} else {
+			fmt.Println("Tâche marquée comme faite :", *doneId)
 		}
 	case "list":
 		listCmd.Parse(os.Args[2:])
