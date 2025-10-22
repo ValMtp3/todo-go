@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -64,6 +65,22 @@ func list() {
 		fmt.Printf("[%s] %d: %s (créée: %s)\n", status, t.ID, t.Title, t.CreatedAt.Format("01-02-2006 15:04:05"))
 	}
 }
+func find(title string) {
+	var results []Task
+	for _, t := range tasks {
+		if strings.Contains(strings.ToLower(t.Title), strings.ToLower(title)) {
+			results = append(results, t)
+			status := " "
+			if t.Done {
+				status = "x"
+			}
+			fmt.Printf("[%s] %d: %s (créée: %s)\n", status, t.ID, t.Title, t.CreatedAt.Format("01-02-2006 15:04:05"))
+		}
+	}
+	if len(results) == 0 {
+		fmt.Println("Aucune tâche trouvée avec le titre :", title)
+	}
+}
 func save() error {
 	b, err := json.MarshalIndent(tasks, "", "  ")
 	if err != nil {
@@ -102,12 +119,13 @@ func main() {
 	doneId := doneCmd.Int("id", 0, "ID de la tâche")
 	supprCmd := flag.NewFlagSet("suppr", flag.ExitOnError)
 	supprId := supprCmd.Int("id", 0, "ID de la tâche")
-
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
+	findCmd := flag.NewFlagSet("find", flag.ExitOnError)
+	findTitle := findCmd.String("title", "", "Titre de la tâche")
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage : todo-go <command> [--flags]")
-		fmt.Println("Commands : add, list")
+		fmt.Println("Commands : add, list, done, suppr, find")
 		os.Exit(1)
 	}
 	if err := load(); err != nil {
@@ -162,6 +180,12 @@ func main() {
 	case "list":
 		listCmd.Parse(os.Args[2:])
 		list()
+	case "find":
+		findCmd.Parse(os.Args[2:])
+		if *findTitle == "" {
+			fmt.Println("Usage: todo find --title \"Ma tâche\"")
+		}
+		find(*findTitle)
 	default:
 		fmt.Println("Commande inconnue:", os.Args[1])
 		os.Exit(1)
